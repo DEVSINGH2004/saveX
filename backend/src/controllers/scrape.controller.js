@@ -1,4 +1,5 @@
 import { Readability } from '@mozilla/readability';
+import { extract } from '@extractus/oembed-extractor'
 import { JSDOM } from 'jsdom';
 
 
@@ -16,4 +17,11 @@ export async function saveScrapedArticle(req, res) {
     return res.status(422).json({ error: 'Article content extract failed' });
    }
    return res.json({ article });
+}
+
+export async function saveScrapedYtVideo(req, res) {
+   const { url } = req.body;
+  const result = await extract(url);
+ console.log(result);
+ return res.json({ result });
 }

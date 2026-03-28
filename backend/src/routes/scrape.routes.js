@@ -1,7 +1,8 @@
 import express from 'express';
-import {saveScrapedArticle} from '../controllers/scrape.controller.js';
+import {saveScrapedArticle, saveScrapedYtVideo} from '../controllers/scrape.controller.js';
 
 const saveRouter = express.Router();
 
-saveRouter.get('/article', saveScrapedArticle);
+saveRouter.post('/article', saveScrapedArticle);
+saveRouter.post('/ytVideo', saveScrapedYtVideo);
 export default saveRouter;

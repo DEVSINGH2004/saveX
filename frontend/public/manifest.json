@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "SaveX",
+  "version": "1.0",
+  "description": "Save any article to SaveX",
+  "permissions": ["activeTab"],
+  "action": {
+    "default_popup": "index.html",
+    "default_icon": "logo.png"
+  }
+}
