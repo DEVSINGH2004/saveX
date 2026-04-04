@@ -2,13 +2,12 @@
   "manifest_version": 3,
   "name": "SaveX",
   "version": "1.0",
-  "description": "Save any article to SaveX",
-  "permissions": ["activeTab"],
+  "permissions": ["activeTab", "storage"],
   "host_permissions": [
-    "http://localhost:3000/*"
+    "http://localhost:3000/*",
+    "https://*.supabase.co/*"
   ],
   "action": {
-    "default_popup": "index.html",
-    "default_icon": "logo.png"
+    "default_popup": "index.html"
   }
 }

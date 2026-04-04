@@ -1,26 +1,39 @@
 import { useState, useEffect } from 'react'
-
-const ARTICLE_URL = 'http://localhost:3000/save/article'
-const YOUTUBE_URL = 'http://localhost:3000/save/ytVideo'
-
-function isYouTube(url) {
-  return url.includes('youtube.com/watch') || url.includes('youtu.be/')
-}
+import Auth from './Auth.jsx' 
 
 export default function App() {
+  const [token, setToken]     = useState(null)
+  const [checked, setChecked] = useState(false)  // storage check hua?
   const [url, setUrl]         = useState('')
   const [status, setStatus]   = useState(null)
   const [loading, setLoading] = useState(false)
 
+  // Token check karo chrome storage mein
   useEffect(() => {
+    chrome.storage.local.get(['token'], (result) => {
+      setToken(result.token || null)
+      setChecked(true)
+    })
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       setUrl(tabs[0].url)
     })
   }, [])
 
-  const isYT    = isYouTube(url)
-  const apiUrl  = isYT ? YOUTUBE_URL : ARTICLE_URL
-  const type    = isYT ? 'YouTube Video' : 'Article'
+  function handleLogout() {
+    chrome.storage.local.remove(['token', 'user'])
+    setToken(null)
+    setStatus(null)
+  }
+
+  // Storage check hone tak wait karo
+  if (!checked) return <div style={{ padding: 16, fontFamily: 'sans-serif' }}>Loading...</div>
+
+  // Token nahi hai toh Auth screen dikhao
+  if (!token) return <Auth onLogin={setToken} />
+
+  // Baaki App same rahega — sirf fetch mein token add karo
+  const isYT   = url.includes('youtube.com/watch') || url.includes('youtu.be/')
+  const apiUrl = isYT ? 'http://localhost:3000/save/ytVideo' : 'http://localhost:3000/save/article'
 
   async function handleSave() {
     setLoading(true)
@@ -29,119 +42,60 @@ export default function App() {
     try {
       const res  = await fetch(apiUrl, {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ url }),
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': `Bearer ${token}`,  // token har request mein bhejo
+        },
+        body: JSON.stringify({ url }),
       })
       const data = await res.json()
 
       console.log('Status:', res.status, 'Data:', data)
 
-      if (res.status === 200) {
-        console.log('item:', data.item)
-        console.log('data:', data)
-        const title = data?.item?.title || data?.title || 'Saved!'
-        setStatus({ type: 'success', message: '✓ Saved: ' + title })
+      if (res.status === 401) {
+        // Token expire ho gaya — logout karo
+        handleLogout()
+        return
+      }
+
+      if (res.status === 201) {
+        setStatus({ type: 'success', message: '✓ Saved: ' + data.item.title })
       } else if (res.status === 409) {
         setStatus({ type: 'error', message: '⚠ Already saved!' })
       } else {
         setStatus({ type: 'error', message: data.error || 'Something went wrong' })
       }
     } catch (err) {
-       console.log('Fetch error name:', err.name)
-  console.log('Fetch error message:', err.message)
-  console.log('Fetch error stack:', err.stack)
-  setStatus({ type: 'error', message: 'Server reach nahi hua: ' + err.message })
+      setStatus({ type: 'error', message: 'Server reach nahi hua' })
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.heading}>SaveX</h2>
-
-      {/* Content type badge */}
-      <div style={{
-        ...styles.badge,
-        background: isYT ? '#ff000015' : '#2D5BE315',
-        color:      isYT ? '#cc0000'   : '#2D5BE3',
-      }}>
-        {isYT ? '▶ YouTube Video' : '📄 Article'}
+    <div style={{ width: '300px', padding: '16px', fontFamily: 'sans-serif' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+        <h2 style={{ fontSize: '16px', fontWeight: '600', margin: 0 }}>SaveX</h2>
+        <span onClick={handleLogout} style={{ fontSize: '12px', color: '#999', cursor: 'pointer' }}>Logout</span>
       </div>
 
-      {/* URL */}
-      <div style={styles.urlBox}>
+      <div style={{ fontSize: '11px', color: '#666', marginBottom: '12px', wordBreak: 'break-all', background: '#f5f5f5', padding: '8px', borderRadius: '6px', maxHeight: '48px', overflow: 'hidden' }}>
         {url || 'Loading...'}
       </div>
 
-      {/* Save button */}
       <button
         onClick={handleSave}
         disabled={loading || !url}
-        style={{
-          ...styles.button,
-          background: loading ? '#aaa' : isYT ? '#cc0000' : '#2D5BE3',
-        }}
+        style={{ width: '100%', padding: '10px', background: loading ? '#aaa' : isYT ? '#cc0000' : '#2D5BE3', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', cursor: 'pointer' }}
       >
-        {loading ? 'Saving...' : `Save ${type}`}
+        {loading ? 'Saving...' : isYT ? 'Save YouTube Video' : 'Save Article'}
       </button>
 
-      {/* Status */}
       {status && (
-        <div style={{
-          ...styles.status,
-          color: status.type === 'success' ? 'green' : 'red',
-        }}>
+        <div style={{ marginTop: '10px', fontSize: '13px', textAlign: 'center', color: status.type === 'success' ? 'green' : 'red' }}>
           {status.message}
         </div>
       )}
     </div>
   )
-}
-
-const styles = {
-  container: {
-    width: '300px',
-    padding: '16px',
-    fontFamily: 'sans-serif',
-  },
-  heading: {
-    fontSize: '16px',
-    fontWeight: '600',
-    marginBottom: '10px',
-    color: '#1a1a1a',
-  },
-  badge: {
-    display: 'inline-block',
-    fontSize: '11px',
-    fontWeight: '600',
-    padding: '3px 10px',
-    borderRadius: '20px',
-    marginBottom: '10px',
-  },
-  urlBox: {
-    fontSize: '11px',
-    color: '#666',
-    marginBottom: '12px',
-    wordBreak: 'break-all',
-    background: '#f5f5f5',
-    padding: '8px',
-    borderRadius: '6px',
-    maxHeight: '48px',
-    overflow: 'hidden',
-  },
-  button: {
-    width: '100%',
-    padding: '10px',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '14px',
-    cursor: 'pointer',
-  },
-  status: {
-    marginTop: '10px',
-    fontSize: '13px',
-    textAlign: 'center',
-  },
 }
